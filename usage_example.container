@@ -1,0 +1,19 @@
+[Unit]
+Description=code-server
+
+[Container]
+Image=localhost/code-server-fedora:latest
+Environment=TZ=Asia/Seoul
+Environment=PUID=%U
+Environment=PGID=%G
+Environment=DEFAULT_WORKSPACE=/config/workspace
+Environment=PWA_APPNAME=code-server
+Volume=%h/.local/share/code-server/config:/config:Z 
+Volume=%h/.config/containers/secrets:/run/secrets:ro,Z
+# abc 유저의 비밀번호이자 code-server의 비밀번호
+Environment=FILE__PASSWORD=/run/secrets/code_server
+# abc 유저의 sudo 비밀번호
+Environment=FILE__SUDO_PASSWORD=/run/secrets/code_server
+
+[Install]
+WantedBy=default.target

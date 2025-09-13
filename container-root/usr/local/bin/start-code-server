@@ -1,14 +1,59 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Load file-based secrets: support envs like FILE__PASSWORD=/path
+load_file_envs() {
+  while IFS='=' read -r name value; do
+    if [[ $name == FILE__* ]]; then
+      key="${name#FILE__}"
+      if [[ -f "$value" ]]; then
+        export "${key}=$(<"$value")"
+      fi
+    fi
+  done < <(env)
+}
+
+load_file_envs
+
 # Ensure required directories and ownership exist for logging and data
 mkdir -p /config/{extensions,data,workspace,.ssh}
 mkdir -p /config/.local/share/code-server/coder-logs
 
-# If running as root, fix ownership and perms, then drop privileges
+# If running as root, align user IDs, sudo and permissions, then drop privileges
 if [[ "${EUID}" -eq 0 ]]; then
-  chown -R 911:911 /config || true
+  # Map user/group ids if provided
+  CURRENT_UID=$(id -u abc)
+  CURRENT_GID=$(id -g abc)
+  TARGET_UID=${PUID:-$CURRENT_UID}
+  TARGET_GID=${PGID:-$CURRENT_GID}
+
+  if [[ "$CURRENT_GID" != "$TARGET_GID" ]]; then
+    EXISTING_GROUP=$(getent group "$TARGET_GID" | cut -d: -f1 || true)
+    if [[ -n "${EXISTING_GROUP}" ]]; then
+      usermod -g "$EXISTING_GROUP" abc
+    else
+      groupmod -g "$TARGET_GID" abc
+    fi
+  fi
+
+  if [[ "$CURRENT_UID" != "$TARGET_UID" ]]; then
+    usermod -u "$TARGET_UID" abc
+  fi
+
+  # Configure sudo access if requested
+  if [[ -n "${SUDO_PASSWORD_HASH:-}" || -n "${SUDO_PASSWORD:-}" ]]; then
+    usermod -aG wheel abc || true
+    if [[ -n "${SUDO_PASSWORD_HASH:-}" ]]; then
+      echo "abc:${SUDO_PASSWORD_HASH}" | chpasswd -e
+    elif [[ -n "${SUDO_PASSWORD:-}" ]]; then
+      echo "abc:${SUDO_PASSWORD}" | chpasswd
+    fi
+  fi
+
+  # Fix ownership and perms for config
+  chown -R $(id -u abc):$(id -g abc) /config || true
   chmod 700 /config/.ssh || true
+
   # Drop to user abc to run code-server
   exec runuser -u abc -- "$0" "$@"
 fi

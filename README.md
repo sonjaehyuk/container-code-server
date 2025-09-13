@@ -327,8 +327,15 @@ docker run --rm --privileged lscr.io/linuxserver/qemu-static --reset
 
 Once registered you can define the dockerfile to use with `-f Dockerfile.aarch64`.
 
+## Example for podman
+
+```shell
+podman build -t code-server-fedora . --build-arg VERSION="1.0.1" --build-arg BUILD_DATE="2025.09.12" --build-arg CODE_RELEASE="4.103.2"
+```
+
 ## Versions
 
+* **1.0.1:** - Fedora42로 전환. rust 개발 환경을 기본으로 추가.
 * **10.08.25:** - Let server listen on both ipv4 and ipv6.
 * **03.06.25:** - Allow setting PWA name using env var `PWA_APPNAME`.
 * **13.10.24:** - Only chown config folder when change to ownership or new install is detected.
