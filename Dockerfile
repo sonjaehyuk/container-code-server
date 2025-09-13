@@ -1,49 +1,85 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/linuxserver/baseimage-ubuntu:noble
+# Use Fedora as base OS as requested
+FROM fedora:42
 
-# set version label
+# labels and args
 ARG BUILD_DATE
 ARG VERSION
-ARG CODE_RELEASE
-LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
-LABEL maintainer="aptalca"
+# v4.103.2
+ARG CODE_RELEASE 
+LABEL org.opencontainers.image.title="code-server on Fedora"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+LABEL maintainer="container-code-server maintainers"
 
-# environment settings
-ARG DEBIAN_FRONTEND="noninteractive"
+# environment
 ENV HOME="/config"
 
-RUN \
-  echo "**** install runtime dependencies ****" && \
-  apt-get update && \
-  apt-get install -y \
+#
+# Runtime and build dependencies via dnf
+# - Development Tools group for build essentials
+# - Fonts: IBM Plex
+# - Utilities required by scripts and code-server
+#
+RUN set -eux; \
+  echo "**** install runtime dependencies ****"; \
+  dnf -y update; \
+  dnf -y install \
     git \
-    libatomic1 \
+    libatomic \
     nano \
     net-tools \
-    sudo && \
-  echo "**** install code-server ****" && \
+    sudo \
+    curl \
+    tar \
+    ca-certificates \
+    nmap-ncat \
+    fontconfig \
+    ibm-plex-fonts-all; \
+  echo "**** install development tools ****"; \
+  dnf -y group install development-tools; \
+  echo "**** create abc user and prepare dirs ****"; \
+  groupadd -g 911 abc; \
+  useradd -u 911 -g 911 -m -s /bin/bash abc; \
+  mkdir -p /config/extensions /config/data /config/workspace /app/code-server; \
+  chown -R abc:abc /config; \
+  echo "**** install code-server ****"; \
   if [ -z ${CODE_RELEASE+x} ]; then \
     CODE_RELEASE=$(curl -sX GET https://api.github.com/repos/coder/code-server/releases/latest \
-      | awk '/tag_name/{print $4;exit}' FS='[""]' | sed 's|^v||'); \
-  fi && \
-  mkdir -p /app/code-server && \
-  curl -o \
-    /tmp/code-server.tar.gz -L \
-    "https://github.com/coder/code-server/releases/download/v${CODE_RELEASE}/code-server-${CODE_RELEASE}-linux-amd64.tar.gz" && \
-  tar xf /tmp/code-server.tar.gz -C \
-    /app/code-server --strip-components=1 && \
-  printf "Linuxserver.io version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
-  echo "**** clean up ****" && \
-  apt-get clean && \
-  rm -rf \
-    /config/* \
-    /tmp/* \
-    /var/lib/apt/lists/* \
-    /var/tmp/*
+      | awk '/tag_name/{print $4;exit}' FS='["\"]' | sed 's|^v||'); \
+  fi; \
+  ARCH_TARBALL="linux-amd64"; \
+  case "$(uname -m)" in \
+    aarch64|arm64) ARCH_TARBALL="linux-arm64" ;; \
+    x86_64|amd64) ARCH_TARBALL="linux-amd64" ;; \
+    *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;; \
+  esac; \
+  curl -o /tmp/code-server.tar.gz -L \
+    "https://github.com/coder/code-server/releases/download/v${CODE_RELEASE}/code-server-${CODE_RELEASE}-${ARCH_TARBALL}.tar.gz"; \
+  tar xf /tmp/code-server.tar.gz -C /app/code-server --strip-components=1; \
+  printf "Linuxserver.io version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version; \
+  echo "**** clean up ****"; \
+  dnf clean all; \
+  rm -rf /var/cache/dnf/* /tmp/* /var/tmp/*
 
-# add local files
-COPY /root /
+# Install Rust (non-interactive) for user abc
+USER abc
+ENV PATH="/home/abc/.cargo/bin:${PATH}"
+RUN set -eux; \
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# copy helper scripts and set entrypoint
+USER root
+COPY container-root/ /
+RUN chmod +x /usr/local/bin/start-code-server /usr/local/bin/install-extension && \
+    chown -R abc:abc /usr/local/bin
+
+# keep root for entrypoint to fix permissions, then drop to abc inside script
+USER root
 
 # ports and volumes
 EXPOSE 8443
+
+# default command
+ENTRYPOINT ["/usr/local/bin/start-code-server"]

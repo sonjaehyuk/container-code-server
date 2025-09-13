@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ensure required directories and ownership exist for logging and data
+mkdir -p /config/{extensions,data,workspace,.ssh}
+mkdir -p /config/.local/share/code-server/coder-logs
+
+# If running as root, fix ownership and perms, then drop privileges
+if [[ "${EUID}" -eq 0 ]]; then
+  chown -R 911:911 /config || true
+  chmod 700 /config/.ssh || true
+  # Drop to user abc to run code-server
+  exec runuser -u abc -- "$0" "$@"
+fi
+
+# Determine auth mode based on env
+if [[ -n "${PASSWORD:-}" || -n "${HASHED_PASSWORD:-}" ]]; then
+  AUTH="password"
+else
+  AUTH="none"
+  echo "starting with no password"
+fi
+
+PROXY_DOMAIN_ARG=""
+if [[ -n "${PROXY_DOMAIN:-}" ]]; then
+  PROXY_DOMAIN_ARG="--proxy-domain=${PROXY_DOMAIN}"
+fi
+
+PWA_APPNAME="${PWA_APPNAME:-code-server}"
+
+exec /app/code-server/bin/code-server \
+  --bind-addr 0.0.0.0:8443 \
+  --user-data-dir /config/data \
+  --extensions-dir /config/extensions \
+  --disable-telemetry \
+  --auth "${AUTH}" \
+  --app-name "${PWA_APPNAME}" \
+  ${PROXY_DOMAIN_ARG} \
+  "${DEFAULT_WORKSPACE:-/config/workspace}"

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${EUID}" -eq 0 ]]; then
+  # Run as abc if invoked by root
+  exec runuser -u abc -- "$0" "$@"
+fi
+
+"/app/code-server/bin/code-server" \
+  --extensions-dir "/config/extensions" \
+  --install-extension "$@"
