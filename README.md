@@ -330,11 +330,12 @@ Once registered you can define the dockerfile to use with `-f Dockerfile.aarch64
 ## Example for podman
 
 ```shell
-podman build -t code-server-fedora . --build-arg VERSION="1.0.1" --build-arg BUILD_DATE="2025.09.12" --build-arg CODE_RELEASE="4.103.2"
+podman build -t code-server-fedora . --build-arg VERSION="1.1.1" --build-arg BUILD_DATE="2025.11.12" --build-arg CODE_RELEASE="4.105.1"
 ```
 
 ## Versions
 
+* **1.1.1:** - Fedora43로 전환. 이미지 빌드 기본값 추가
 * **1.0.1:** - Fedora42로 전환. rust 개발 환경을 기본으로 추가.
 * **10.08.25:** - Let server listen on both ipv4 and ipv6.
 * **03.06.25:** - Allow setting PWA name using env var `PWA_APPNAME`.
