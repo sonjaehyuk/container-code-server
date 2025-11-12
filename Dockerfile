@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Use Fedora as base OS as requested
-FROM fedora:42
+FROM fedora:43
 
 # labels and args
 ARG BUILD_DATE
