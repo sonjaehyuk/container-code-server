@@ -330,7 +330,7 @@ Once registered you can define the dockerfile to use with `-f Dockerfile.aarch64
 ## Example for podman
 
 ```shell
-podman build -t code-server-fedora . --build-arg VERSION="1.1.1" --build-arg BUILD_DATE="2025.11.12" --build-arg CODE_RELEASE="4.105.1"
+podman build -t code-server-fedora . --build-arg VERSION="1.1.2" --build-arg BUILD_DATE="2025.11.12" --build-arg CODE_RELEASE="4.106.2"
 ```
 
 ## Versions

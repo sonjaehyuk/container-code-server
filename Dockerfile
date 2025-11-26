@@ -5,8 +5,8 @@ FROM fedora:43
 
 # labels and args
 ARG BUILD_DATE=2025.11.12
-ARG VERSION=1.1.1
-ARG CODE_RELEASE=4.105.1
+ARG VERSION=1.1.2
+ARG CODE_RELEASE=4.106.2
 LABEL org.opencontainers.image.title="code-server on Fedora"
 LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
